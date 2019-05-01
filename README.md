@@ -29,9 +29,9 @@
 #### 尝试深入了解Reactjs
 
 #### 深入探究MySQL
-[一条SQL语句的执行过程，链接->分析->优化->执行](./MySQL/sql_how_run.md)
-[一条更新语句引发的日志模式redo与binlog](./MySQL/sql_how_log.md)
-[事务执行过程](./MySQL/sql_how_transcation.md)
+* [一条SQL语句的执行过程，链接->分析->优化->执行](./MySQL/sql_how_run.md)
+* [一条更新语句引发的日志模式redo与binlog](./MySQL/sql_how_log.md)
+* [事务执行过程](./MySQL/sql_how_transcation.md)
 
 #### Redis深入了解算法模型以及使用 解决问题
 
