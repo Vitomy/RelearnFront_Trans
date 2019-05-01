@@ -64,3 +64,10 @@ var symbolObject = Object(Symbol("a"));// 显式转换
     // TypeError
 ```
 #### js代码实现String到Number的转换？不用原生的Number和ParseInt
+```js
+function myParseInt(str){
+    return str*1;
+}
+```
+一开始我只想到了，转换为ascii码。但是js是弱类型语言，到处都存在隐式类型转换。<br>
+为效率而生真的为效率而生！<br>
