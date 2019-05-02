@@ -32,7 +32,7 @@
 * [一条SQL语句的执行过程，链接->分析->优化->执行](./MySQL/sql_how_run.md)
 * [一条更新语句引发的日志模式redo与binlog](./MySQL/sql_how_log.md)
 * [事务执行过程](./MySQL/sql_how_transcation.md)
-
+* [索引深入浅出B+树](./MySQL/sql_how_index.md)
 #### Redis深入了解算法模型以及使用 解决问题
 
 #### 浏览器系列
