@@ -358,7 +358,7 @@ function getNumbers(array){
     return res;
 }
 ```
-函数是以函数实现，只需啊哟关系这个方法能做什么而不是他具体怎么实现。<br>
+函数是以函数实现，只需关心这个方法能做什么而不是他具体怎么实现。<br>
 函数是第一等公民。<br>
 ```js
 var getUser = $.get;
@@ -564,7 +564,12 @@ Student.prototype = new Person();
 ```
 通过__proto__就可以访问父类对象的原型。<br>
 提供了`Object.create();`作用同上，使用也一样<br>
+#### 事件循环机制
+Javascript代码执行过程中，除了依靠函数调用栈来搞定函数的执行顺序外，还依靠任务队列(task queue)来搞定另外一些代码的执行。<br>
 
+一个线程中，事件循环是唯一的，但是任务队列可以拥有多个。<br>
+macro-task大概包括:scripts，setTimeout，setInterval，setImmediate，I/O，UI rendering<br>
 
+micro-task大概包括:process.nextTick,Promise,Object.observe,MutationObserver<br>
 
 

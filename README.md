@@ -35,6 +35,9 @@
 * [事务执行过程](./MySQL/sql_how_transcation.md)
 * [索引深入浅出B+树](./MySQL/sql_how_index.md)
 * [探究锁的功过，全局锁，表锁，行锁](./MySQL/sql_how_lock.md)
+* [事务隔离，每次都生成新视图可重复读与读提交](./MySQL/sql_how_transcation_ques.md)
+* [MySQL空间回收策略](./MySQL/sql_how_collection.md)
+* [count性能](./MySQL/sql_how_count.md)
 #### Redis深入了解算法模型以及使用 解决问题
 
 #### 浏览器系列
