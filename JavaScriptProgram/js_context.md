@@ -565,6 +565,7 @@ Student.prototype = new Person();
 通过__proto__就可以访问父类对象的原型。<br>
 提供了`Object.create();`作用同上，使用也一样<br>
 #### 事件循环机制
+[事件循环机制，很重要](https://www.jianshu.com/p/12b9f73c5a4f)
 Javascript代码执行过程中，除了依靠函数调用栈来搞定函数的执行顺序外，还依靠任务队列(task queue)来搞定另外一些代码的执行。<br>
 
 一个线程中，事件循环是唯一的，但是任务队列可以拥有多个。<br>
@@ -572,4 +573,512 @@ macro-task大概包括:scripts，setTimeout，setInterval，setImmediate，I/O�
 
 micro-task大概包括:process.nextTick,Promise,Object.observe,MutationObserver<br>
 
+setTimeout/Promise等我们称之为任务源。而进入任务队列的是他们指定的具体的执行任务。<br>
+```js
+// setTimeout中的回调函数才是进入任务队列的任务
+setTimeout(function() {
+    console.log('xxxx');
+})
+// 非常多的同学对于setTimeout的理解存在偏差。所以大概说一下误解：
+// setTimeout作为一个任务分发器，这个函数会立即执行，而它所要分发的任务，也就是它的第一个参数，才是延迟执行
+```
 
+来自不同任务源的任务会进入到不同的任务队列。其中setTimeout与setInterval是同源的。<br>
+
+事件循环的顺序，决定了JS代码的执行顺序，从script开始第一次循环。之后全局上下文进入函数调用栈。调用栈清空(只剩下全局)，然后执行所有的micro-task。当所有的可执行的micro-task执行完毕之后，循环再次从macro-task开始，找到其中一个任务队列执行完毕，然后再执行所有的micro-task，这样一直循环下去<br>
+
+其中每一个任务的执行，无论是macro-task还是micro-task，都是借助函数调用栈来完成的<br>
+
+#### Promise 透彻理解promise
+[promise传送门](https://segmentfault.com/a/1190000012646402)
+
+```js
+function want() {
+    console.log('这是你想要执行的代码');
+}
+
+function fn(want) {
+    console.log('这里表示执行了一大堆各种代码');
+
+    // 返回Promise对象
+    return new Promise(function(resolve, reject) {
+        if (typeof want == 'function') {
+            resolve(want);
+        } else {
+            reject('TypeError: '+ want +'不是一个函数')
+        }
+    })
+}
+
+fn(want).then(function(want) {
+    want();
+})
+
+fn('1234').catch(function(err) {
+    console.log(err);
+})
+```
+Promise对象有三种状态
+* pending: 等待中，或者进行中，表示还没有得到结果
+* resolved(Fulfilled): 已经完成，表示得到了我们想要的结果，可以继续往下执行
+* rejected: 表示得到结果，但是并不是我们想要的，拒绝执行
+
+```js
+new Promise(function(resolve, reject) {
+    if(true) { resolve() };
+    if(false) { reject() };
+})
+```
+上面的resolve和reject都为一个函数，作用分别是将状态修改为resolved和rejected<br>
+Promise对象中的then方法，接收构造函数中处理的状态变化，并分别对应执行。then有两个参数，第一个函数接收resolved状态的执行，第二个参数接收reject状态的执行<br>
+
+```js
+function fnpromise(want){
+    return new Promise(function(resolve,reject){
+        if(typeof want === "number") resolve();
+        else reject();
+}).then(function(){console.log("num")},function(){console.log("not num");});
+}
+```
+then方法的执行结果也会返回一个Promise对象。因此可以进行then的链式执行，这也是解决回调地狱的主要方式。<br>
+```js
+function fn(num) {
+    return new Promise(function(resolve, reject) {
+        if (typeof num == 'number') {
+            resolve();
+        } else {
+            reject();
+        }
+    })
+    .then(function() {
+        console.log('参数是一个number值');
+    })
+    .then(null, function() {
+        console.log('参数不是一个number值');
+    })
+}
+
+fn('hahha');
+fn(1234);
+```
+Promise中的数据传递
+```js
+var fn = function(num) {
+    return new Promise(function(resolve, reject) {
+        if (typeof num == 'number') {
+            resolve(num);
+        } else {
+            reject('TypeError');
+        }
+    })
+}
+
+fn(2).then(function(num) {
+    console.log('first: ' + num);
+    return num + 1;
+})
+.then(function(num) {
+    console.log('second: ' + num);
+    return num + 1;
+})
+.then(function(num) {
+    console.log('third: ' + num);
+    return num + 1;
+});
+
+// 输出结果
+first: 2
+second: 3
+third: 4
+```
+对于ajax的封装
+```js
+var url = 'https://hq.tigerbrokers.com/fundamental/finance_calendar/getType/2017-02-26/2017-06-10';
+
+// 封装一个get请求的方法
+function getJSON(url) {
+    return new Promise(function(resolve, reject) {
+        var XHR = new XMLHttpRequest();
+        XHR.open('GET', url, true);
+        XHR.send();
+
+        XHR.onreadystatechange = function() {
+            if (XHR.readyState == 4) {
+                if (XHR.status == 200) {
+                    try {
+                        var response = JSON.parse(XHR.responseText);
+                        resolve(response);
+                    } catch (e) {
+                        reject(e);
+                    }
+                } else {
+                    reject(new Error(XHR.statusText));
+                }
+            }
+        }
+    })
+}
+
+getJSON(url).then(resp => console.log(resp));
+```
+#### Promise.all
+当有一个ajax的请求，参数需要另外两个甚至更多请求都有返回结果之后才能确定，那么这个时候，就需要用到Promise.all来帮助我们应对这个场景。<br>
+Promise.all接收一个Promise对象组成的数组作为参数，当这个数组所有的Promise对象状态都变成resolved或者rejected的时候，才会调用then方法。<br>
+```js
+var url = 'https://hq.tigerbrokers.com/fundamental/finance_calendar/getType/2017-02-26/2017-06-10';
+var url1 = 'https://hq.tigerbrokers.com/fundamental/finance_calendar/getType/2017-03-26/2017-06-10';
+
+function renderAll() {
+    return Promise.all([getJSON(url), getJSON(url1)]);
+}
+
+renderAll().then(function(value) {
+    // 建议大家在浏览器中看看这里的value值 也是一个resolved组成的数组
+    console.log(value);
+})
+```
+#### Promise.race都是以一个Promise对象组成的数组作为参数
+当一个Promise状态变成resolved或者rejected时，就可以调用.then方法。
+```js
+function renderRace() {
+    return Promise.race([getJSON(url), getJSON(url1)]);
+}
+
+renderRace().then(function(value) {
+    console.log(value);
+})
+```
+马上调用了then方法，也没有等待后面的数据回来。<br>
+
+#### Es6基础知识汇总
+1. 新的变量声明方式let/const 与var不同，新的变量声明方式带来了一些不一样的特性就是提供了块级作用域与不再具备变量提升<br>
+```js
+{let a = 10;}; console.log(a);
+// VM1305:1 Uncaught ReferenceError: a is not defined
+//     at <anonymous>:1:28
+```
+使用ES6，需要全面使用let/const替换var。什么时候用？<br>
+let来声明一个值会被改变的变量，而使用const来声明一个值不会被改变的变量，称之为常量。<br>
+
+```js
+const obDev = {a:23,b:34};
+undefined
+obDev = {b:23,a:34};
+// VM1438:1 Uncaught TypeError: Assignment to constant variable.
+//     at <anonymous>:1:7
+// (anonymous) @ VM1438:1
+obDev.a = {b:23,a:34};
+{b: 23, a: 34}a: 34b: 23__proto__: Object
+obDev
+{a: {…}, b: 34}
+```
+#### 箭头函数的使用()=>{}
+```js
+// ES5
+var fn = function(a,b){return a+b;}
+// ES6 当函数直接被return时，可以省略函数体的括号
+const fn = (a,b)=>a+b;
+// ES5
+var foo = function(){var a = 20;var b = 30;return a+b;}
+//es6
+const foo = ()=>{const a = 20;const b = 30;return a+b;}
+```
+箭头函数可以替换函数表达式，但是不能替换函数声明。<br>
+箭头函数中，没有this。如果你在箭头函数中使用了this，那么该this一定就是外层的this。<br>
+正是因为箭头函数没有this，因此我们也就无从谈起用call/apply/bind来改变this指向。<br>
+```js
+var person = {
+    name: 'tom',
+    getName: function() {
+        return this.name;
+    }
+}
+
+// 我们试图用ES6的写法来重构上面的对象
+const person = {
+    name: 'tom',
+    getName: () => this.name
+}
+
+// 但是编译结果却是
+var person = {
+    name: 'tom',
+    getName: function getName() {
+        return undefined.name;
+    }
+};
+```
+es6会默认采用严格模式，因此this也不会自动指向window对象了。如果必须使用this，可以采用以下的写法
+```js
+const person = {
+    name:"tom",
+    getName:function(){
+        return setTimeout(()=>this.name,1000);
+    }
+}
+
+// 编译后
+var person = {
+    name:"tom",
+    getName:function getName(){
+        var _this = this;
+        return setTimeout(function(){
+            return _this.name;
+        },1000);
+    }
+}
+```
+箭头函数无法访问arguments对象。<br>
+#### 模版字符串 解决使用+号拼接字符串的不便利而出现的
+```js
+const a = 20;
+const b = 30;
+const string = `${a}+${b} = ${a+b}`;
+```
+使用``将整个字符串包裹起来，在${}来包裹一个变量或这一个表达式，shell也有类似的用法<br>
+#### 解析结构
+```js
+const props = {
+    className:'tiger-button',
+    loading:false,
+    clicked:true,
+    disabled:'disabled'
+}
+```
+当我们需要取得其中的两个值loading与clicked时
+```js
+// es5
+var loading = props.loading;
+var clicked = props.clicked;
+// es6
+const {loading,clicked} = props;
+// 给一个默认值，当props对象中找不到loading时，loading就等于该默认值
+const {loading = false,clicked} = props;
+```
+解析结构的减少了很大的代码量，所以大受欢迎。<br>
+```js
+// 比如
+// section1
+import React, { Component } from 'react';
+
+// section2
+export { default } from './Button';
+
+// section3
+const { click, loading } = this.props;
+const { isCheck } = this.state;
+
+// more  任何获取对象属性值的场景都可以使用解析结构来减少我们的代码量
+```
+另外，数组也有属于自己的解析结构
+```js
+const arr = [1,2,3];
+const [a,b,c] = arr;
+
+// es5
+var arr = [1,2,3];
+var a = arr[0];
+...
+```
+#### 函数默认参数
+之前不能为函数指定默认参数，因此很多时候，为了保证传入的参数具备一个默认值
+```js
+function add(x, y) {
+    var x = x || 20;
+    var y = y || 30;
+    return x + y;
+}
+
+console.log(add()); // 50
+```
+以上方法是常用的，但是es6
+```js
+function add(x = 20, y = 30) {
+    return x + y;
+}
+
+console.log(add());
+```
+而实际开发中，可以这样做
+```js
+const ButtonGroupProps = {
+    size: 'normal',
+    className: 'xxxx-button-group',
+    borderColor: '#333'
+}
+
+export default function ButtonGroup(props = ButtonGroupProps) {
+    ... ...
+}
+```
+#### 展开运算符
+es6用...来表示展开运算符，可以将数组方法或者对象进行展开。
+```js
+const arr1 = [1,2,3];
+const arr2 = [...arr1,10,20,30];
+// 对象
+const obj1 = {
+  a: 1,
+  b: 2,
+  c: 3
+}
+
+const obj2 = {
+  ...obj1,
+  d: 4,
+  e: 5,
+  f: 6
+}
+
+// 结果类似于 const obj2 = Object.assign({}, obj1, {d: 4})
+```
+展开运算符结合解析结构使用。
+```js
+// 这种方式在react中十分常用
+const props = {
+  size: 1,
+  src: 'xxxx',
+  mode: 'si'
+}
+
+
+const { size, ...others } = props;
+
+console.log(others)
+
+// 然后再利用暂开运算符传递给下一个元素，再以后封装react组件时会大量使用到这种方式，正在学习react的同学一定要搞懂这种使用方式
+<button {...others} size={size} />
+```
+展开运算符还用在函数的参数中，来表示函数的不定参。只有放在最后才能作为函数的不定参数，否则会报错。<br>
+```js
+const add = (a,b,...more) =>{
+    console.log(more);// 传进来的more是一个数组
+    return more.reduce((m,n)=>m+n)+a+b; // 这里是函数式编程的使用
+    // reduce 将参数两项两项相加，第一项加第二项之后又变成了第一项继续相加
+}
+console.log(add(1,2,3,4,5,6,7,8));
+```
+#### 对象的字面量与class
+```js
+// es6
+const name = "jane";
+const age = 10;
+const Person = {name,age}
+
+// es5
+var Person = {name:name,age:age};
+```
+这种方式在任何地方都可以使用，比如在一个模块对外提供接口时。<br>
+```js
+const getName = ()=>person.name;
+const getAge = ()=>person.age;
+// commonJS方式
+module.exports = {getName,getAge};
+// ES6 modules方式
+export default {getName,getAge};
+```
+除了属性之外，对象字面量写法中的方法也有简写方式
+```js
+/ es6
+const person = {
+  name,
+  age,
+  getName() { // 只要不使用箭头函数，this就还是我们熟悉的this
+    return this.name
+  }
+}
+
+// es5
+var person = {
+  name: name,
+  age: age,
+  getName: function getName() {
+    return this.name;
+  }
+};
+```
+在对象字面量中可以使用中括号作为属性，表示属性名也能是一个变量了
+```js
+const name = 'Jane';
+const age = 20
+
+const person = {
+  [name]: true,
+  [age]: true
+}
+```
+例如ant-design源码实现，大量使用了这种方式来拼接当前元素className
+```js
+let alertCls = classNames(prefixCls, {
+      [`${prefixCls}-${type}`]: true,
+      [`${prefixCls}-close`]: !this.state.closing,
+      [`${prefixCls}-with-description`]: !!description,
+      [`${prefixCls}-no-icon`]: !showIcon,
+      [`${prefixCls}-banner`]: !!banner,
+ }, className);
+```
+Es6为创建对象提供了新的语法糖，class语法
+```js
+// es5
+function Person(name,age){
+    this.name = name;
+    this.age = age;
+}
+// 原型方法
+Person.prototype.getName = function(){return this.name}
+// Es6
+class Person{
+    constructor(name,age){
+        this.name = name;
+        this.age = age;
+    }
+    getName(){return this.name;} // 原型方法
+    static a = 20; // 等同于Person.a = 20
+    c = 20;// 表示在构造函数中添加属性 在构造函数中扽同于 this.c = 20
+    // 箭头函数的写法表示在构造函数中添加方法，在构造函数中等同于this.getAge = function(){}
+    getAge = ()=>this.age;
+    // 箭头函数this指向不能被改变
+}
+```
+继承extends
+```js
+class Student extends Person{
+    constructor(name,age,gender,classed){
+        super(name,age);
+        this.gender = gender;
+        this.classes = classes;
+    }
+    getGender(){return this.gender;}
+}
+```
+只需要extends关键字就可以实现继承了。不用像es5那样去担心构造函数继承和原型继承。<br>
+super方法其实与ES5的call/apply继承构造函数是一样的功能<br>
+```js
+super(name,age);
+Person.call(this);
+// 也可以调用父级原型方法
+super.getName
+```
+#### 模块Modules
+```js
+const a = 10;
+const b = 20;
+
+const obj = {
+    name:"trans",
+    age:"24"
+}
+
+const fn = ()=>{
+    const a = 20;
+    const b = 39;
+    return a+b;
+}
+
+export default {
+    a,b,obj,fn
+}
+
+export const bar = ()=>{}
+export const foo = 1234;
+```
